@@ -1,0 +1,9 @@
+{
+    "name": "Lockscreen Musicplayer Buttons",
+    "description": "This patch adds buttons to control mediaplayer into the lockscreen. Requires D-Bus interface in the Mediaplayer.",
+    "category": "homescreen",
+    "infos": {
+        "maintainer": "@Van_ess/van-ess0"
+    }
+}
+

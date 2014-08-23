@@ -1,0 +1,127 @@
+diff -ur ousr/lib/qt5/qml/com/jolla/mediaplayer/AudioPlayer.qml usr/lib/qt5/qml/com/jolla/mediaplayer/AudioPlayer.qml
+--- /usr/lib/qt5/qml/com/jolla/mediaplayer/AudioPlayer.qml	2014-07-23 01:53:43.000000000 +0400
++++ /usr/lib/qt5/qml/com/jolla/mediaplayer/AudioPlayer.qml	2014-07-29 02:46:43.000000000 +0400
+@@ -6,6 +6,7 @@
+ import Sailfish.Media 1.0
+ import com.jolla.mediaplayer 1.0
+ import org.nemomobile.policy 1.0
++import org.nemomobile.dbus 1.0
+ 
+ DockedPanel {
+     id: player
+@@ -73,6 +74,7 @@
+         audio.model.currentIndex = audio.model.shuffledIndex(index)
+ 
+         _play()
++	mediaPlayerButtonsNotification.call("playingState",["true"])
+     }
+ 
+     function shuffleAndPlay(model, modelSize) {
+@@ -141,11 +143,13 @@
+             audio.play()
+         }
+         showControls()
++	mediaPlayerButtonsNotification.call("playingState",["true"])
+     }
+ 
+     function pause() {
+         _resume = false
+         audio.pause()
++	mediaPlayerButtonsNotification.call("playingState",["false"])
+     }
+ 
+     function playNext() {
+@@ -252,6 +256,7 @@
+                     'trackCount': model.count,
+                     'duration'  : currentItem.duration * 1000
+                 }
++		mediaPlayerButtonsNotification.call("nowPlaying", [currentItem.title, currentItem.album, currentItem.author])
+             }
+             bluetoothMediaPlayer.metadata = metadata
+         }
+@@ -259,9 +264,12 @@
+         onStateChanged: {
+             if (state == Audio.Playing && !player._resume) {
+                 player.open = true
++		mediaPlayerButtonsNotification.call("playingState",["true"])
+             } else if (state == Audio.Stopped) {
+                 player._resume = false
++		mediaPlayerButtonsNotification.call("playingState",["false"])
+             }
++
+         }
+         function playNext() {
+             var index = model.currentIndex + 1
+@@ -463,4 +471,45 @@
+             }
+         }
+     }
++    DBusAdaptor {
++        id: mediaPlayerButtonsControl
++
++        property bool isPaused: false
++
++        service: "com.jolla.mediaplayer.remotecontrol"
++        iface: "com.jolla.mediaplayer.remotecontrol.Interface"
++        path: "/com/jolla/mediaplayer/remotecontrol"
++
++        signal executeCommand(string command)
++
++        onExecuteCommand: {
++            console.log("Trying to execute command: " + command)
++            switch (command) {
++            case "next":
++                audio.playNext()
++                break
++            case "toggle_pause":
++                if (isPaused) {
++                    player._play()
++                    isPaused = false
++                } else {
++                    player.pause()
++                    isPaused = true
++                }
++                break
++            case "prev":
++                audio.playPrevious()
++                break
++            }
++        }
++    }
++
++    DBusInterface {
++        id: mediaPlayerButtonsNotification
++
++        destination: "com.jolla.mediaplayer.notification"
++        iface: "com.jolla.mediaplayer.notification.Interface"
++        path: "/com/jolla/mediaplayer/notification"
++    }
++
+ }
+diff -ur ousr/share/jolla-mediaplayer/qml/mediaplayer.qml usr/share/jolla-mediaplayer/qml/mediaplayer.qml
+--- /usr/share/jolla-mediaplayer/qml/mediaplayer.qml	2014-07-23 01:44:03.000000000 +0400
++++ /usr/share/jolla-mediaplayer/qml/mediaplayer.qml	2014-07-29 02:24:12.000000000 +0400
+@@ -17,6 +17,10 @@
+     property variant allSongsArt
+     property variant artistsArt
+ 
++    Component.onDestruction: {
++        mediaPlayerButtonsNotification.call("checkOnOff",["off"])
++    }
++
+     function fetchAlbumArts(count) {
+         var artList = []
+         for (var i = 0; i < count; ++i) {
+@@ -116,4 +120,12 @@
+             return true
+         }
+     }
++
++    DBusInterface {
++        id: mediaPlayerButtonsNotification
++
++        destination: "com.jolla.mediaplayer.notification"
++        iface: "com.jolla.mediaplayer.notification.Interface"
++        path: "/com/jolla/mediaplayer/notification"
++    }
+ }

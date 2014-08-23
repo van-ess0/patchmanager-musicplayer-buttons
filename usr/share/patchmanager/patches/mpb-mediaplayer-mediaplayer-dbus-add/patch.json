@@ -1,0 +1,9 @@
+{
+    "name": "Mediaplayer D-Bus Add",
+    "description": "This patch adds D-Bus interface to the jolla-mediaplayer. Great thanks to Ruedigergad for the base patch.",
+    "category": "mediaplayer",
+    "infos": {
+        "maintainer": "@Van_ess/van-ess0"
+    }
+}
+

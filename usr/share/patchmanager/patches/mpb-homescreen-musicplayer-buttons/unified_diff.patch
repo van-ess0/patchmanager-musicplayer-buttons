@@ -1,0 +1,175 @@
+diff -ur ousr/share/lipstick-jolla-home-qt5/qml/Lockscreen.qml usr/share/lipstick-jolla-home-qt5/qml/Lockscreen.qml
+--- /usr/share/lipstick-jolla-home-qt5/qml/Lockscreen.qml	2014-07-29 02:31:00.000000000 +0400
++++ /usr/share/lipstick-jolla-home-qt5/qml/Lockscreen.qml	2014-08-13 02:56:57.000000000 +0400
+@@ -11,6 +11,7 @@
+ import com.jolla.lipstick 0.1
+ import org.nemomobile.time 1.0
+ import "scripts/desktop.js" as Desktop
++import org.nemomobile.dbus 1.0
+ 
+ MouseArea {
+     id: lockScreen
+@@ -32,7 +33,45 @@
+     property color textColor: lipstickSettings.lowPowerMode ? Theme.highlightColor : Theme.primaryColor
+ 
+     property Item accessNotificationsHint
++    
++    DBusInterface {
++        id: mediaPlayerButtonsControl
+ 
++        destination: "com.jolla.mediaplayer.remotecontrol"
++        iface: "com.jolla.mediaplayer.remotecontrol.Interface"
++        path: "/com/jolla/mediaplayer/remotecontrol"
++    } 
++
++    DBusAdaptor {
++        id: mediaPlayerButtonsNotification
++
++        service: "com.jolla.mediaplayer.notification"
++        iface: "com.jolla.mediaplayer.notification.Interface"
++        path: "/com/jolla/mediaplayer/notification"
++
++        signal nowPlaying(string track, string album, string artist)
++
++        signal playingState(string state)
++
++        signal checkOnOff(string onoff)
++
++        onNowPlaying: {
++            nowPlayingLabel.fillingMetadata(track, album, artist)
++        }
++
++        onPlayingState: {
++            pause.choosingIcon(state)
++
++        }
++
++        onCheckOnOff: {
++            if (onoff === "off") {
++                nowPlayingLabel.fillingMetadata("", "", "")
++            }
++        }
++    }
++
++    
+     onOnDisplayChanged: {
+         if (onDisplay) {
+             if (desktop.animating) {
+@@ -154,6 +193,7 @@
+     }
+ 
+     SimToolkitIdleModeIndicator {
++	id: simToolkitIdleModeIndicator
+         anchors {
+             top: networkNameAndDateLabels.bottom
+             topMargin: Theme.paddingMedium
+@@ -161,6 +201,109 @@
+         }
+         width: parent.width - 2*(Theme.iconSizeLarge + Theme.paddingLarge)
+     }
++    
++    Item {
++        id: player
++        height: 140
++        width: parent.width - 140
++        anchors.horizontalCenter: parent.horizontalCenter
++        anchors.top: simToolkitIdleModeIndicator.bottom
++        opacity: (nowPlayingLabel.text.length > 13) ? 1 : 0
++
++        Label {
++            id: nowPlayingLabel
++            textFormat: Text.RichText
++            horizontalAlignment: Text.AlignLeft
++            color: Theme.highlightColor
++
++            property string artist: ""
++            property string track: ""
++            text:"<b>" + artist + "</b>" + " <br> " + track
++            anchors.top: parent.top
++            anchors.right: parent.right
++            width: parent.width - 40
++            height: (parent.height / 3) * 2
++
++            function fillingMetadata(track, album, artist) {
++                nowPlayingLabel.artist = artist
++                nowPlayingLabel.track = track
++            }
++        }
++
++        Image {
++            id: prev
++            height: parent.height / 3
++            fillMode: Image.PreserveAspectFit
++            anchors.left: parent.left
++            anchors.top: nowPlayingLabel.bottom
++            width: height + 80
++            source: "/usr/share/themes/jolla-ambient/meegotouch/icons/icon-cover-next-song.png"
++            rotation: 180
++
++            MouseArea {
++                anchors.fill: parent
++                onClicked: {
++                    console.log('Prev Clicked')
++                    mediaPlayerButtonsControl.call("executeCommand", "prev")
++                    pause.choosingIcon("true")
++                    console.log('Done PlayPrev')
++                }
++                onPressed: parent.opacity = 0.4
++                onReleased: parent.opacity = 1
++            }
++        }
++        Image {
++            id: pause
++            height: parent.height / 3
++            fillMode: Image.PreserveAspectFit
++            source: "/usr/share/themes/jolla-ambient/meegotouch/icons/icon-cover-pause.png"
++            anchors.top: nowPlayingLabel.bottom
++            anchors.horizontalCenter: parent.horizontalCenter
++
++            function choosingIcon(state) {
++                if (state === "true") {
++                    pause.source = "/usr/share/themes/jolla-ambient/meegotouch/icons/icon-cover-pause.png"
++                } else if (state === "false") {
++                    pause.source = "/usr/share/themes/jolla-ambient/meegotouch/icons/icon-cover-play.png"
++                }
++
++            }
++
++            MouseArea {
++                anchors.fill: parent
++                onClicked: {
++                    console.log('Play/Pause Clicked')
++                    mediaPlayerButtonsControl.call("executeCommand", "toggle_pause")
++                    pause.choosingIcon("true")
++                    console.log('Play/Pause Done')
++                }
++                onPressed: parent.opacity = 0.4
++                onReleased: parent.opacity = 1
++            }
++        }
++        Image {
++            id: next
++            height: parent.height / 3
++            fillMode: Image.PreserveAspectFit
++            width: height + 80
++            source: "/usr/share/themes/jolla-ambient/meegotouch/icons/icon-cover-next-song.png"
++            anchors.right: parent.right
++            anchors.top: nowPlayingLabel.bottom
++
++
++            MouseArea {
++                anchors.fill: parent
++                onClicked: {
++                    console.log('Next Clicked')
++                    mediaPlayerButtonsControl.call("executeCommand", "next")
++                    console.log('Done PlayNext')
++                }
++                onPressed: parent.opacity = 0.4
++                onReleased: parent.opacity = 1
++            }
++        }
++
++    }
+ 
+     ProfileStatusIndicator {
+         id: profileStatusIndicator
